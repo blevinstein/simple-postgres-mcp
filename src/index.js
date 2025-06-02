@@ -7,6 +7,8 @@ const yargs = require('yargs');
 const { hideBin } = require('yargs/helpers');
 const { MilvusClient } = require('@zilliz/milvus2-sdk-node');
 
+const DEFAULT_EMBEDDING_MODEL = 'google/text-embedding-004';
+
 const argv = yargs(hideBin(process.argv))
   .option('host', {
     type: 'string',
@@ -31,13 +33,18 @@ const argv = yargs(hideBin(process.argv))
   .argv;
 
 class MilvusMCPServer {
-  constructor(host, port, fixedCollection, defaultEmbeddingModel) {
+  constructor(host, port, fixedCollection, embeddingModel) {
     this.host = host;
     this.port = port;
     this.fixedCollection = fixedCollection;
-    this.defaultEmbeddingModel = defaultEmbeddingModel;
+    this.embeddingModel = embeddingModel || DEFAULT_EMBEDDING_MODEL;
     this.embedText = null;
     
+    // Validate that we have all required parameters
+    if (!host || !port) {
+      throw new Error('Milvus host and port are required');
+    }
+
     this.client = new MilvusClient({
       address: `${host}:${port}`,
     });
@@ -59,8 +66,10 @@ class MilvusMCPServer {
 
   async loadEmbedText() {
     if (!this.embedText) {
+      // TODO Solve build issues that require CommonJS in this file, and therefore this hacky ES6 import
       const polytokenizer = await import('polytokenizer');
       this.embedText = polytokenizer.embedText;
+      this.EMBEDDING_DIMENSIONS = polytokenizer.EMBEDDING_DIMENSIONS;
     }
     return this.embedText;
   }
@@ -96,10 +105,6 @@ class MilvusMCPServer {
                     description: 'Collection name'
                   }
                 }),
-                embedding_model: {
-                  type: 'string',
-                  description: `Embedding model to use (optional, default: ${this.defaultEmbeddingModel}). Examples: openai/text-embedding-3-small, vertex/text-embedding-005, google/text-embedding-004`
-                }
               },
               required: ['id', 'content']
             }
@@ -131,10 +136,6 @@ class MilvusMCPServer {
                     description: 'Collection name'
                   }
                 }),
-                embedding_model: {
-                  type: 'string',
-                  description: `Embedding model to use for semantic search (optional, default: ${this.defaultEmbeddingModel}). Examples: openai/text-embedding-3-small, vertex/text-embedding-005, google/text-embedding-004`
-                }
               },
               required: ['query']
             }
@@ -180,11 +181,7 @@ class MilvusMCPServer {
   }
 
   getCollectionName(args) {
-    return args.collection || this.defaultCollection;
-  }
-
-  getEmbeddingModel(args) {
-    return args.embedding_model || this.defaultEmbeddingModel;
+    return args.collection || this.fixedCollection;
   }
 
   async ensureCollection(collectionName) {
@@ -197,7 +194,50 @@ class MilvusMCPServer {
     });
 
     if (!hasCollection.value) {
-      throw new Error(`Collection '${collectionName}' does not exist`);
+      const embeddingDim = this.EMBEDDING_DIMENSIONS[this.embeddingModel];
+      if (!embeddingDim) {
+        throw new Error(`Unknown embedding dimensions for '${this.embeddingModel}'`);
+      }
+
+      // Create collection with default schema
+      await this.client.createCollection({
+        collection_name: collectionName,
+        fields: [
+          {
+            name: 'id',
+            description: 'Unique identifier',
+            data_type: 11, // DataType.VarChar
+            is_primary_key: true,
+            max_length: 100,
+          },
+          {
+            name: 'content',
+            description: 'Memory content',
+            data_type: 11, // DataType.VarChar
+            max_length: 65535,
+          },
+          {
+            name: 'embedding',
+            description: 'Vector embedding of content',
+            data_type: 101, // DataType.FloatVector
+            dim: embeddingDim,
+          }
+        ],
+        enable_dynamic_field: true,
+      });
+
+      // Create index on the embedding field
+      await this.client.createIndex({
+        collection_name: collectionName,
+        field_name: 'embedding',
+        extra_params: {
+          index_type: 'HNSW',
+          metric_type: 'L2',
+          params: JSON.stringify({ M: 8, efConstruction: 200 }),
+        },
+      });
+
+      console.log(`Created collection '${collectionName}' with embedding dimension ${embeddingDim} for model '${embeddingModel}'`);
     }
 
     await this.client.loadCollection({
@@ -205,10 +245,10 @@ class MilvusMCPServer {
     });
   }
 
-  async generateEmbedding(text, embeddingModel) {
+  async generateEmbedding(text) {
     try {
       const embedText = await this.loadEmbedText();
-      const result = await embedText(embeddingModel, text);
+      const result = await embedText(this.embeddingModel, text);
       return result.vector;
     } catch (error) {
       throw new Error(`Failed to generate embedding with ${embeddingModel}: ${error.message}`);
@@ -218,11 +258,10 @@ class MilvusMCPServer {
   async storeMemory(args) {
     try {
       const collectionName = this.getCollectionName(args);
-      const embeddingModel = this.getEmbeddingModel(args);
       
       await this.ensureCollection(collectionName);
 
-      const embedding = await this.generateEmbedding(args.content, embeddingModel);
+      const embedding = await this.generateEmbedding(args.content);
       
       const insertData = [{
         id: args.id,
@@ -270,9 +309,17 @@ class MilvusMCPServer {
       const limit = args.limit || 10;
       let results;
 
+      // Get collection fields to extract all metadata
+      const collectionInfo = await this.client.describeCollection({
+        collection_name: collectionName,
+      });
+      
+      const allFields = collectionInfo.schema.fields.map(field => field.name);
+      const outputFields = ['id', 'content', ...allFields.filter(f => 
+        f !== 'id' && f !== 'content' && f !== 'embedding')];
+
       if (mode === 'semantic') {
-        const embeddingModel = this.getEmbeddingModel(args);
-        const queryEmbedding = await this.generateEmbedding(args.query, embeddingModel);
+        const queryEmbedding = await this.generateEmbedding(args.query);
         
         results = await this.client.search({
           collection_name: collectionName,
@@ -283,13 +330,14 @@ class MilvusMCPServer {
             metric_type: 'L2',
             params: JSON.stringify({ nprobe: 10 }),
           },
-          output_fields: ['id', 'content'],
+          output_fields: outputFields,
         });
       } else if (mode === 'fulltext') {
+        const escapedQuery = args.query.replace(/"/g, '\\"');
         results = await this.client.query({
           collection_name: collectionName,
-          expr: `content like "%${args.query}%"`,
-          output_fields: ['id', 'content'],
+          expr: `content like "%${escapedQuery}%"`,
+          output_fields: outputFields,
           limit: limit,
         });
       } else {
@@ -299,32 +347,39 @@ class MilvusMCPServer {
       const memories = [];
       if (results.results && results.results.length > 0) {
         for (const hit of results.results) {
-          const similarity = hit.distance !== undefined ? 
-            1.0 / (1.0 + hit.distance) : 
-            (hit.score || 1.0);
+          const { id, content, embedding, distance, score, ...metadata } = hit;
+          const similarity = distance !== undefined ? 
+            1.0 / (1.0 + distance) : 
+            (score || 1.0);
           
           memories.push({
-            id: hit.id,
-            content: hit.content,
-            similarity: similarity
+            id: id,
+            content: content,
+            similarity: similarity,
+            metadata,
           });
         }
       } else if (results.data) {
         for (const item of results.data) {
+          const { id, content, embedding, distance, score, ...metadata } = item;
+          const similarity = distance !== undefined ? 
+            1.0 / (1.0 + distance) : 
+            (score || 1.0);
+          
           memories.push({
-            id: item.id,
-            content: item.content,
-            similarity: 1.0
+            id: id,
+            content: content,
+            similarity: similarity,
+            metadata,
           });
         }
       }
 
-      const embeddingInfo = mode === 'semantic' ? ` using embedding model: ${this.getEmbeddingModel(args)}` : '';
       return {
         content: [
           {
             type: 'text',
-            text: `Found ${memories.length} memories using ${mode} search${embeddingInfo}:\n\n` +
+            text: `Found ${memories.length} memories using ${mode} search:\n\n` +
                   memories.map(m => `ID: ${m.id}\nSimilarity: ${m.similarity.toFixed(3)}\nContent: ${m.content}\n`).join('\n---\n')
           }
         ]
@@ -347,9 +402,10 @@ class MilvusMCPServer {
       const collectionName = this.getCollectionName(args);
       await this.ensureCollection(collectionName);
 
+      const escapedId = args.id.replace(/"/g, '\\"');
       await this.client.delete({
         collection_name: collectionName,
-        expr: `id == "${args.id}"`,
+        expr: `id == "${escapedId}"`,
       });
 
       return {
@@ -374,8 +430,20 @@ class MilvusMCPServer {
   }
 
   async run() {
-    const transport = new StdioServerTransport();
-    await this.server.connect(transport);
+    try {
+      // Check if Milvus is available
+      const status = await this.client.checkHealth();
+      if (!status.isHealthy) {
+        throw new Error(`Milvus server at ${this.host}:${this.port} is not healthy`);
+      }
+      console.log(`Connected to Milvus server at ${this.host}:${this.port}`);
+      
+      const transport = new StdioServerTransport();
+      await this.server.connect(transport);
+    } catch (error) {
+      console.error(`Failed to connect to Milvus: ${error.message}`);
+      process.exit(1);
+    }
   }
 }
 

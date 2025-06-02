@@ -29,7 +29,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@zilliz/milvus2-sdk-node": "^2.4.8",
-    "polytokenizer": "^1.0.5",
+    "polytokenizer": "^1.0.6",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
