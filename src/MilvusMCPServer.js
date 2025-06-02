@@ -337,7 +337,7 @@ class MilvusMCPServer {
           params: {
             drop_ratio_search: 0.2
           },
-          output_fields: ['id', 'content'],  // Fulltext search only returns basic fields
+          output_fields: outputFields,
         });
       } else {
         throw new Error(`Unknown search mode: ${mode}`);
@@ -353,35 +353,10 @@ class MilvusMCPServer {
           (score || 1.0);
         
         let metadata = {};
-        let finalCreatedAt = created_at;
-        
-        // For fulltext search, metadata needs to be fetched separately
-        if (mode === 'fulltext') {
-          try {
-            const metadataQuery = await this.client.query({
-              collection_name: collectionName,
-              filter: `id == "${id}"`,
-              output_fields: ['metadata_json', 'created_at'],
-              limit: 1,
-            });
-            if (metadataQuery.data && metadataQuery.data.length > 0) {
-              finalCreatedAt = metadataQuery.data[0].created_at;
-              try {
-                metadata = JSON.parse(metadataQuery.data[0].metadata_json || '{}');
-              } catch (e) {
-                metadata = {};
-              }
-            }
-          } catch (e) {
-            metadata = {};
-          }
-        } else {
-          // For semantic search, metadata is included in results
-          try {
-            metadata = JSON.parse(metadata_json || '{}');
-          } catch (e) {
-            metadata = {};
-          }
+        try {
+          metadata = JSON.parse(metadata_json || '{}');
+        } catch (e) {
+          metadata = {};
         }
         
         memories.push({
@@ -389,7 +364,7 @@ class MilvusMCPServer {
           content: content,
           similarity: similarity,
           metadata,
-          created_at: finalCreatedAt
+          created_at,
         });
       }
 
@@ -398,7 +373,12 @@ class MilvusMCPServer {
           {
             type: 'text',
             text: `Found ${memories.length} memories using ${mode} search:\n\n` +
-                  memories.map(m => `ID: ${m.id}\nSimilarity: ${m.similarity.toFixed(3)}\nContent: ${m.content}\n`).join('\n---\n')
+                  memories.map(m => {
+                    const metadataStr = Object.keys(m.metadata).length > 0 ? 
+                      `\nMetadata: ${JSON.stringify(m.metadata)}` : '';
+                    const createdStr = m.created_at ? `\nCreated: ${m.created_at}` : '';
+                    return `ID: ${m.id}\nSimilarity: ${m.similarity.toFixed(3)}\nContent: ${m.content}${metadataStr}${createdStr}\n`;
+                  }).join('\n---\n')
           }
         ]
       };
