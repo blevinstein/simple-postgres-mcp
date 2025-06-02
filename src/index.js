@@ -64,14 +64,14 @@ class MilvusMCPServer {
     this.setupHandlers();
   }
 
-  async loadEmbedText() {
+  // TODO Solve build issues that require CommonJS in this file, and therefore this hacky ES6 import
+  async loadPolytokenizer() {
     if (!this.embedText) {
-      // TODO Solve build issues that require CommonJS in this file, and therefore this hacky ES6 import
       const polytokenizer = await import('polytokenizer');
       this.embedText = polytokenizer.embedText;
       this.EMBEDDING_DIMENSIONS = polytokenizer.EMBEDDING_DIMENSIONS;
     }
-    return this.embedText;
+    return { embedText: this.embedText, EMBEDDING_DIMENSIONS: this.EMBEDDING_DIMENSIONS };
   }
 
   setupHandlers() {
@@ -194,9 +194,10 @@ class MilvusMCPServer {
     });
 
     if (!hasCollection.value) {
-      const embeddingDim = this.EMBEDDING_DIMENSIONS[this.embeddingModel];
+      const { EMBEDDING_DIMENSIONS } = await this.loadPolytokenizer();
+      const embeddingDim = EMBEDDING_DIMENSIONS[this.embeddingModel];
       if (!embeddingDim) {
-        throw new Error(`Unknown embedding dimensions for '${this.embeddingModel}'`);
+        throw new Error(`Unknown embedding dimensions for '${this.embeddingModel}'. Available models: ${Object.keys(this.EMBEDDING_DIMENSIONS).join(', ')}`);
       }
 
       // Create collection with default schema
@@ -247,7 +248,7 @@ class MilvusMCPServer {
 
   async generateEmbedding(text) {
     try {
-      const embedText = await this.loadEmbedText();
+      const { embedText } = await this.loadPolytokenizer();
       const result = await embedText(this.embeddingModel, text);
       return result.vector;
     } catch (error) {
