@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "simple-milvus-mcp": {
+      "command": "node",
+      "args": ["./src/index.js", "--host", "localhost", "--port", "19530", "--collection", "test_collection", "--embedding-model", "openai/text-embedding-3-small"]
+    },
+    "simple-milvus-mcp-all": {
+      "command": "node",
+      "args": ["./src/index.js", "--host", "localhost", "--port", "19530", "--embedding-model", "openai/text-embedding-3-small"]
+    }
+  }
+}

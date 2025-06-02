@@ -1,0 +1,46 @@
+{
+  "name": "simple-milvus-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Milvus vector database with semantic and full-text search capabilities",
+  "main": "dist/index.js",
+  "bin": {
+    "simple-milvus-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "ncc build src/index.js -o dist --minify",
+    "dev": "node src/index.js",
+    "prepublishOnly": "pnpm run build",
+    "test": "node dist/index.js --help"
+  },
+  "keywords": [
+    "milvus",
+    "mcp",
+    "vector",
+    "database",
+    "semantic-search",
+    "ai",
+    "embeddings"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@zilliz/milvus2-sdk-node": "^2.4.8",
+    "polytokenizer": "^1.0.5",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blevinstein/simple-milvus-mcp.git"
+  },
+  "packageManager": "pnpm@10.11.0+sha512.6540583f41cc5f628eb3d9773ecee802f4f9ef9923cc45b69890fb47991d4b092964694ec3a4f738a420c918a333062c8b925d312f42e4f0c263eb603551f977"
+}
