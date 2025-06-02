@@ -1,0 +1,11 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Repository Guide
+
+DO NOT run the mcp server directly for testing. The MCP server will be started/restarted by Cursor when you `touch .cursor/mcp.json`.
+
+NEVER add console.log statements inside the mcp server. That will break the MCP protocol which expects only valid JSON from stdout.
+

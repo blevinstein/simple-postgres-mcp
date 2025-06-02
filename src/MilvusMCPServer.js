@@ -1,7 +1,7 @@
 const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
 const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
 const { CallToolRequestSchema, ListToolsRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
-const { MilvusClient, DataType } = require('@zilliz/milvus2-sdk-node');
+const { MilvusClient, DataType, FunctionType } = require('@zilliz/milvus2-sdk-node');
 
 const DEFAULT_EMBEDDING_MODEL = 'google/text-embedding-004';
 
@@ -170,29 +170,65 @@ class MilvusMCPServer {
         throw new Error(`Model '${this.embeddingModel}' not found in EMBEDDING_DIMENSIONS. Available models: ${availableModels.join(', ')}`);
       }
 
+      // Create schema for collection with both semantic and fulltext search capabilities
+      const schema = [
+        {
+          name: 'id',
+          data_type: DataType.VarChar,
+          max_length: 128,
+          is_primary_key: true,
+        },
+        {
+          name: 'content',
+          data_type: DataType.VarChar,
+          max_length: 65535,
+          enable_analyzer: true,  // Enable text analysis for fulltext search
+          enable_match: true,     // Enable text matching
+        },
+        {
+          name: 'embedding',
+          data_type: DataType.FloatVector,
+          dim: expectedDim,
+        },
+        {
+          name: 'sparse',
+          data_type: DataType.SparseFloatVector,  // Sparse vector for BM25 fulltext search
+        },
+      ];
+
+      // Define BM25 function for fulltext search
+      const functions = [
+        {
+          name: 'content_bm25_emb',
+          description: 'BM25 function for fulltext search',
+          type: FunctionType.BM25,
+          input_field_names: ['content'],
+          output_field_names: ['sparse'],
+          params: {},
+        },
+      ];
+
+      // Index parameters for both semantic and fulltext search
+      const index_params = [
+        {
+          field_name: 'embedding',
+          index_type: 'FLAT',
+          metric_type: 'L2',
+        },
+        {
+          field_name: 'sparse',
+          index_type: 'SPARSE_INVERTED_INDEX',
+          metric_type: 'BM25',
+        },
+      ];
+
+      // Create collection with schema, functions, and index parameters
       await this.client.createCollection({
         collection_name: collectionName,
-        fields: [
-          {
-            name: 'id',
-            data_type: 'VarChar',
-            max_length: 128,
-            is_primary_key: true,
-          },
-          {
-            name: 'embedding',
-            data_type: 'FloatVector',
-            dim: expectedDim,
-          },
-        ],
+        schema: schema,
+        functions: functions,
+        index_params: index_params,
         enable_dynamic_field: true,
-      });
-      
-      await this.client.createIndex({
-        collection_name: collectionName,
-        field_name: 'embedding',
-        index_type: 'FLAT',
-        metric_type: 'L2',
       });
     }
 
@@ -224,8 +260,8 @@ class MilvusMCPServer {
       
       const data = [{
         id: generatedId,
-        embedding: embedding,
-        content: args.content,
+        content: args.content,  // Content will automatically generate sparse vector via BM25 function
+        embedding,   // Dense vector for semantic search
         metadata_json: JSON.stringify(args.metadata || {}),
         created_at: new Date().toISOString(),
       }];
@@ -280,39 +316,72 @@ class MilvusMCPServer {
       let results;
 
       if (mode === 'semantic') {
+        // Semantic search using dense vectors
         const queryEmbedding = await this.generateEmbedding(args.query);
         
         results = await this.client.search({
           collection_name: collectionName,
-          vectors: [queryEmbedding],
-          search_params: {
-            anns_field: 'embedding',
-            topk: limit,
-            metric_type: 'L2',
-            params: JSON.stringify({ nprobe: 10 }),
-          },
+          data: [queryEmbedding],
+          anns_field: 'embedding',
+          limit: limit,
+          params: { nprobe: 10 },
           output_fields: outputFields,
         });
       } else if (mode === 'fulltext') {
-        throw new Error('Fulltext search is not currently implemented. Please use semantic search mode instead. Fulltext search requires a different schema with sparse vectors and BM25 functions.');
+        // Fulltext search using BM25 sparse vectors
+        results = await this.client.search({
+          collection_name: collectionName,
+          data: [args.query],  // Raw text query - Milvus will handle BM25 conversion
+          anns_field: 'sparse',
+          limit: limit,
+          params: {
+            drop_ratio_search: 0.2
+          },
+          output_fields: ['id', 'content'],  // Fulltext search only returns basic fields
+        });
       } else {
         throw new Error(`Unknown search mode: ${mode}`);
       }
 
       const memories = [];
-      const resultData = results.results || results.data || [];
       
-      for (const item of resultData) {
+      // results.results is always an array for search operations
+      for (const item of results.results) {
         const { id, content, metadata_json, created_at, distance, score } = item;
         const similarity = distance !== undefined ? 
           1.0 / (1.0 + distance) : 
           (score || 1.0);
         
         let metadata = {};
-        try {
-          metadata = JSON.parse(metadata_json || '{}');
-        } catch (e) {
-          metadata = {};
+        let finalCreatedAt = created_at;
+        
+        // For fulltext search, metadata needs to be fetched separately
+        if (mode === 'fulltext') {
+          try {
+            const metadataQuery = await this.client.query({
+              collection_name: collectionName,
+              filter: `id == "${id}"`,
+              output_fields: ['metadata_json', 'created_at'],
+              limit: 1,
+            });
+            if (metadataQuery.data && metadataQuery.data.length > 0) {
+              finalCreatedAt = metadataQuery.data[0].created_at;
+              try {
+                metadata = JSON.parse(metadataQuery.data[0].metadata_json || '{}');
+              } catch (e) {
+                metadata = {};
+              }
+            }
+          } catch (e) {
+            metadata = {};
+          }
+        } else {
+          // For semantic search, metadata is included in results
+          try {
+            metadata = JSON.parse(metadata_json || '{}');
+          } catch (e) {
+            metadata = {};
+          }
         }
         
         memories.push({
@@ -320,7 +389,7 @@ class MilvusMCPServer {
           content: content,
           similarity: similarity,
           metadata,
-          created_at
+          created_at: finalCreatedAt
         });
       }
 
