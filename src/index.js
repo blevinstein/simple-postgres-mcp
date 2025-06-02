@@ -2,7 +2,7 @@
 
 const yargs = require('yargs');
 const { hideBin } = require('yargs/helpers');
-const { MilvusMCPServer } = require('./MilvusMCPServer');
+const { MilvusMCPServer } = require('./milvusMCPServer.js');
 
 const argv = yargs(hideBin(process.argv))
   .option('host', {
