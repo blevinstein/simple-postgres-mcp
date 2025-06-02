@@ -279,12 +279,19 @@ class MilvusMCPServer {
         content: [
           {
             type: 'text',
-            text: `Successfully stored memory in collection: ${collectionName}
-- Generated ID: ${generatedId}
-- Content length: ${args.content.length} characters
-- Embedding dimensions: ${embedding.length}
-- Embedding model: ${this.embeddingModel}
-- Metadata fields: ${Object.keys(args.metadata || {}).join(', ') || 'none'}`
+            text: JSON.stringify({
+              success: true,
+              operation: 'store',
+              result: {
+                id: generatedId,
+                collection: collectionName,
+                content_length: args.content.length,
+                embedding_dimensions: embedding.length,
+                embedding_model: this.embeddingModel,
+                metadata: args.metadata || {},
+                created_at: new Date().toISOString()
+              }
+            }, null, 2)
           }
         ]
       };
@@ -293,7 +300,11 @@ class MilvusMCPServer {
         content: [
           {
             type: 'text',
-            text: `Error storing memory: ${error.message}`
+            text: JSON.stringify({
+              success: false,
+              operation: 'store',
+              error: error.message
+            }, null, 2)
           }
         ],
         isError: true
@@ -372,13 +383,16 @@ class MilvusMCPServer {
         content: [
           {
             type: 'text',
-            text: `Found ${memories.length} memories using ${mode} search:\n\n` +
-                  memories.map(m => {
-                    const metadataStr = Object.keys(m.metadata).length > 0 ? 
-                      `\nMetadata: ${JSON.stringify(m.metadata)}` : '';
-                    const createdStr = m.created_at ? `\nCreated: ${m.created_at}` : '';
-                    return `ID: ${m.id}\nSimilarity: ${m.similarity.toFixed(3)}\nContent: ${m.content}${metadataStr}${createdStr}\n`;
-                  }).join('\n---\n')
+            text: JSON.stringify({
+              success: true,
+              operation: 'search',
+              result: {
+                query: args.query,
+                mode: mode,
+                count: memories.length,
+                memories: memories
+              }
+            }, null, 2)
           }
         ]
       };
@@ -387,7 +401,11 @@ class MilvusMCPServer {
         content: [
           {
             type: 'text',
-            text: `Error searching memories: ${error.message}`
+            text: JSON.stringify({
+              success: false,
+              operation: 'search',
+              error: error.message
+            }, null, 2)
           }
         ],
         isError: true
@@ -409,7 +427,14 @@ class MilvusMCPServer {
         content: [
           {
             type: 'text',
-            text: `Successfully deleted memory with ID: ${args.id} from collection: ${collectionName}`
+            text: JSON.stringify({
+              success: true,
+              operation: 'delete',
+              result: {
+                id: args.id,
+                collection: collectionName
+              }
+            }, null, 2)
           }
         ]
       };
@@ -418,7 +443,11 @@ class MilvusMCPServer {
         content: [
           {
             type: 'text',
-            text: `Error deleting memory: ${error.message}`
+            text: JSON.stringify({
+              success: false,
+              operation: 'delete',
+              error: error.message
+            }, null, 2)
           }
         ],
         isError: true
