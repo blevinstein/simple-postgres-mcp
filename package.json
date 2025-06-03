@@ -13,7 +13,8 @@
     "build": "ncc build src/index.js -o dist --minify",
     "dev": "node src/index.js",
     "prepublishOnly": "pnpm run build",
-    "test": "node dist/index.js --help"
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "keywords": [
     "milvus",
@@ -33,7 +34,8 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
-    "@vercel/ncc": "^0.38.1"
+    "@vercel/ncc": "^0.38.1",
+    "vitest": "^3.2.0"
   },
   "engines": {
     "node": ">=18"
