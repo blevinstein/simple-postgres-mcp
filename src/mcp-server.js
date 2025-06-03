@@ -54,7 +54,7 @@ class MilvusMCPServer {
         tools: [
           {
             name: 'store_memory',
-            description: 'Store a memory/document in Milvus with automatic embedding generation',
+            description: 'Store a memory/document in vector storage, to be indexed for semantic and fulltext search. The collection will be created if it does not exist.',
             inputSchema: {
               type: 'object',
               properties: {
