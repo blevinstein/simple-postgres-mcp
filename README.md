@@ -1,5 +1,24 @@
 # Simple Milvus MCP
 
+> **⚠️ NOTE: This is NOT the official MCP server for Milvus**  
+> The official MCP server is available at: https://github.com/zilliztech/mcp-server-milvus
+
+## Why This Alternative MCP Server?
+
+This simplified MCP server was created for specific use cases where the official server may not be the best fit:
+
+**Primary Use Case: Multi-Tenant Collection Management**
+- Multiple MCP servers can use the same Milvus database instance with segregated storage
+- Each server instance can operate on different collections (e.g., per-user, per-account, per-application)
+- Enables cost-effective shared infrastructure while maintaining data isolation
+- Perfect for SaaS applications where each customer needs their own vector space
+
+**Secondary Benefit: Agent-Friendly Simplified Interface**
+- Agents and LLMs can struggle with too many tool options, leading to poor decision-making
+- This server provides just 3 focused tools (`store_memory`, `search_memory`, `forget_memory`)
+- Simplified interface makes it easier to combine with other MCP servers and capabilities
+- Optimized for memory/knowledge management workflows rather than full database administration
+
 A Model Context Protocol (MCP) server for [Milvus](https://milvus.io/) vector database that provides semantic and full-text search capabilities using both dense embeddings and BM25 sparse vectors.
 
 ## Features
