@@ -12,7 +12,7 @@ class MilvusMCPServer {
     this.fixedCollection = fixedCollection;
     this.embeddingModel = embeddingModel || DEFAULT_EMBEDDING_MODEL;
     this.embedText = null;
-    
+
     if (!host || !port) {
       throw new Error('Milvus host and port are required');
     }
@@ -20,7 +20,7 @@ class MilvusMCPServer {
     this.client = new MilvusClient({
       address: `${host}:${port}`,
     });
-    
+
     this.server = new Server(
       {
         name: 'milvus-mcp-server',
@@ -32,7 +32,7 @@ class MilvusMCPServer {
         },
       }
     );
-    
+
     this.setupHandlers();
   }
 
@@ -49,7 +49,7 @@ class MilvusMCPServer {
   setupHandlers() {
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       const hasFixedCollection = !!this.fixedCollection;
-      
+
       return {
         tools: [
           {
@@ -79,7 +79,7 @@ class MilvusMCPServer {
           },
           {
             name: 'search_memory',
-            description: 'Search for memories/documents in Milvus',
+            description: 'Search for memories/documents in vector storage',
             inputSchema: {
               type: 'object',
               properties: {
@@ -110,7 +110,7 @@ class MilvusMCPServer {
           },
           {
             name: 'forget_memory',
-            description: 'Delete a memory/document from Milvus',
+            description: 'Delete a memory/document from vector storage',
             inputSchema: {
               type: 'object',
               properties: {
@@ -134,7 +134,7 @@ class MilvusMCPServer {
 
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
-      
+
       switch (name) {
         case 'store_memory':
           return await this.storeMemory(args);
@@ -164,7 +164,7 @@ class MilvusMCPServer {
     if (!hasCollection.value) {
       const { EMBEDDING_DIMENSIONS } = await this.loadPolytokenizer();
       const expectedDim = EMBEDDING_DIMENSIONS[this.embeddingModel];
-      
+
       if (!expectedDim) {
         const availableModels = Object.keys(EMBEDDING_DIMENSIONS);
         throw new Error(`Model '${this.embeddingModel}' not found in EMBEDDING_DIMENSIONS. Available models: ${availableModels.join(', ')}`);
@@ -257,7 +257,7 @@ class MilvusMCPServer {
 
       const embedding = await this.generateEmbedding(args.content);
       const generatedId = `mem_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
+
       const data = [{
         id: generatedId,
         content: args.content,  // Content will automatically generate sparse vector via BM25 function
@@ -329,7 +329,7 @@ class MilvusMCPServer {
       if (mode === 'semantic') {
         // Semantic search using dense vectors
         const queryEmbedding = await this.generateEmbedding(args.query);
-        
+
         results = await this.client.search({
           collection_name: collectionName,
           data: [queryEmbedding],
@@ -355,21 +355,21 @@ class MilvusMCPServer {
       }
 
       const memories = [];
-      
+
       // results.results is always an array for search operations
       for (const item of results.results) {
         const { id, content, metadata_json, created_at, distance, score } = item;
-        const similarity = distance !== undefined ? 
-          1.0 / (1.0 + distance) : 
+        const similarity = distance !== undefined ?
+          1.0 / (1.0 + distance) :
           (score || 1.0);
-        
+
         let metadata = {};
         try {
           metadata = JSON.parse(metadata_json || '{}');
         } catch (e) {
           metadata = {};
         }
-        
+
         memories.push({
           id: id,
           content: content,
@@ -416,7 +416,7 @@ class MilvusMCPServer {
   async forgetMemory(args) {
     try {
       const collectionName = this.getCollectionName(args);
-      
+
       // First validate the ID format
       if (!args.id || !args.id.match(/^mem_\d+_[a-z0-9]+$/)) {
         throw new Error(`Invalid memory ID format. Expected format: mem_timestamp_randomstring, got: ${args.id}`);
@@ -487,7 +487,7 @@ class MilvusMCPServer {
       if (!status.isHealthy) {
         throw new Error(`Milvus server at ${this.host}:${this.port} is not healthy`);
       }
-      
+
       const transport = new StdioServerTransport();
       await this.server.connect(transport);
     } catch (error) {
@@ -497,4 +497,4 @@ class MilvusMCPServer {
   }
 }
 
-module.exports = { MilvusMCPServer, DEFAULT_EMBEDDING_MODEL }; 
+module.exports = { MilvusMCPServer, DEFAULT_EMBEDDING_MODEL };
