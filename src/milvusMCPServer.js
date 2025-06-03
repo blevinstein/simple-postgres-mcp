@@ -416,8 +416,34 @@ class MilvusMCPServer {
   async forgetMemory(args) {
     try {
       const collectionName = this.getCollectionName(args);
+      
+      // First validate the ID format
+      if (!args.id || !args.id.match(/^mem_\d+_[a-z0-9]+$/)) {
+        throw new Error(`Invalid memory ID format. Expected format: mem_timestamp_randomstring, got: ${args.id}`);
+      }
+
+      // Check if collection exists
+      const hasCollection = await this.client.hasCollection({ collection_name: collectionName });
+      if (!hasCollection.value) {
+        throw new Error(`Collection "${collectionName}" does not exist`);
+      }
+
       await this.ensureCollection(collectionName);
 
+      // Check if the memory exists before attempting deletion
+      const queryResult = await this.client.query({
+        collection_name: collectionName,
+        filter: `id == "${args.id}"`,
+        output_fields: ['id'],
+        limit: 1
+      });
+
+      // If no results found, the memory doesn't exist
+      if (!queryResult.data || queryResult.data.length === 0) {
+        throw new Error(`Memory with ID "${args.id}" not found in collection "${collectionName}"`);
+      }
+
+      // Now delete the memory since we confirmed it exists
       await this.client.delete({
         collection_name: collectionName,
         filter: `id == "${args.id}"`,
