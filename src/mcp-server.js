@@ -317,10 +317,6 @@ class MilvusMCPServer {
       const collectionName = this.getCollectionName(args);
       await this.ensureCollection(collectionName);
 
-      await this.client.flush({
-        collection_names: [collectionName],
-      });
-
       const mode = args.mode || 'semantic';
       const limit = args.limit || 10;
       const outputFields = ['id', 'content', 'metadata_json', 'created_at'];
