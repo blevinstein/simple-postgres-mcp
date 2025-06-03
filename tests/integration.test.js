@@ -11,7 +11,7 @@ describe('Milvus MCP Server Integration Tests', () => {
 
   beforeAll(async () => {
     // Load CommonJS modules dynamically
-    const serverModule = await import('../src/milvusMCPServer.js');
+    const serverModule = await import('../src/mcp-server.js');
     const clientModule = await import('@zilliz/milvus2-sdk-node');
     MilvusMCPServer = serverModule.MilvusMCPServer;
     MilvusClient = clientModule.MilvusClient;
