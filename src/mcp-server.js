@@ -1,7 +1,8 @@
-const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
-const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
-const { CallToolRequestSchema, ListToolsRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
-const { MilvusClient, DataType, FunctionType } = require('@zilliz/milvus2-sdk-node');
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { MilvusClient, DataType, FunctionType } from '@zilliz/milvus2-sdk-node';
+import { embedText, EMBEDDING_DIMENSIONS } from 'polytokenizer';
 
 const DEFAULT_EMBEDDING_MODEL = 'google/text-embedding-004';
 
@@ -11,7 +12,6 @@ class MilvusMCPServer {
     this.port = port;
     this.fixedCollection = fixedCollection;
     this.embeddingModel = embeddingModel || DEFAULT_EMBEDDING_MODEL;
-    this.embedText = null;
 
     if (!host || !port) {
       throw new Error('Milvus host and port are required');
@@ -34,16 +34,6 @@ class MilvusMCPServer {
     );
 
     this.setupHandlers();
-  }
-
-  // TODO Solve build issues that require CommonJS in this file, and therefore this hacky ES6 import
-  async loadPolytokenizer() {
-    if (!this.embedText) {
-      const polytokenizer = await import('polytokenizer');
-      this.embedText = polytokenizer.embedText;
-      this.EMBEDDING_DIMENSIONS = polytokenizer.EMBEDDING_DIMENSIONS;
-    }
-    return { embedText: this.embedText, EMBEDDING_DIMENSIONS: this.EMBEDDING_DIMENSIONS };
   }
 
   setupHandlers() {
@@ -162,7 +152,6 @@ class MilvusMCPServer {
     });
 
     if (!hasCollection.value) {
-      const { EMBEDDING_DIMENSIONS } = await this.loadPolytokenizer();
       const expectedDim = EMBEDDING_DIMENSIONS[this.embeddingModel];
 
       if (!expectedDim) {
@@ -239,7 +228,6 @@ class MilvusMCPServer {
 
   async generateEmbedding(text) {
     try {
-      const { embedText } = await this.loadPolytokenizer();
       const result = await embedText(this.embeddingModel, text);
       return result.vector;
     } catch (error) {
@@ -493,4 +481,4 @@ class MilvusMCPServer {
   }
 }
 
-module.exports = { MilvusMCPServer, DEFAULT_EMBEDDING_MODEL };
+export { MilvusMCPServer, DEFAULT_EMBEDDING_MODEL };

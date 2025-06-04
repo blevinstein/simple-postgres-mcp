@@ -1,21 +1,16 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { MilvusMCPServer } from '../src/mcp-server.js';
+import { MilvusClient } from '@zilliz/milvus2-sdk-node';
 
 describe('Milvus MCP Server Integration Tests', () => {
   let server;
   let client;
-  let MilvusMCPServer, MilvusClient;
   const testCollection = `test_integration_${Date.now()}`;
   const host = 'localhost';
   const port = '19530';
   const embeddingModel = 'google/text-embedding-004';
 
   beforeAll(async () => {
-    // Load CommonJS modules dynamically
-    const serverModule = await import('../src/mcp-server.js');
-    const clientModule = await import('@zilliz/milvus2-sdk-node');
-    MilvusMCPServer = serverModule.MilvusMCPServer;
-    MilvusClient = clientModule.MilvusClient;
-
     // Check if Milvus is running
     client = new MilvusClient({ address: `${host}:${port}` });
     

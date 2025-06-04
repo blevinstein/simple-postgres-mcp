@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-const yargs = require('yargs');
-const { hideBin } = require('yargs/helpers');
-const { MilvusMCPServer } = require('./mcp-server.js');
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
+import { MilvusMCPServer } from './mcp-server.js';
 
 const argv = yargs(hideBin(process.argv))
   .option('host', {
