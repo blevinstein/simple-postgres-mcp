@@ -475,7 +475,7 @@ class MilvusMCPServer {
       const transport = new StdioServerTransport();
       await this.server.connect(transport);
     } catch (error) {
-      console.error(`Failed to connect to Milvus: ${error.message}`);
+      console.error(`Failed to connect to Milvus: ${error.toString()}`);
       process.exit(1);
     }
   }

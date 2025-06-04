@@ -19,6 +19,7 @@
         "./src/index.js",
         "--host", "localhost",
         "--port", "19530",
+        "--collection", "test_collection",
         "--embedding-model", "google/text-embedding-004"
       ],
       "env": {
