@@ -1,6 +1,6 @@
 {
   "name": "simple-milvus-mcp",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "MCP server for Milvus vector database with semantic and full-text search capabilities",
   "type": "module",
   "main": "dist/index.js",
@@ -8,10 +8,11 @@
     "simple-milvus-mcp": "./dist/index.js"
   },
   "files": [
-    "dist/"
+    "dist/",
+    "node_modules/@zilliz/"
   ],
   "scripts": {
-    "build": "ncc build src/index.js -o dist --minify",
+    "build": "ncc build src/index.js -o dist --minify --external @zilliz/milvus2-sdk-node",
     "dev": "node src/index.js",
     "prepublishOnly": "pnpm run build",
     "test": "vitest",
