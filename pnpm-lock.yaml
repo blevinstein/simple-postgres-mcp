@@ -15,8 +15,8 @@ importers:
         specifier: ^2.4.8
         version: 2.5.9
       polytokenizer:
-        specifier: ^1.0.7
-        version: 1.0.7(zod@3.25.46)
+        specifier: ^1.0.9
+        version: 1.0.9(zod@3.25.46)
       yargs:
         specifier: ^17.7.2
         version: 17.7.2
@@ -936,8 +936,8 @@ packages:
     resolution: {integrity: sha512-ueGLflrrnvwB3xuo/uGob5pd5FN7l0MsLf0Z87o/UQmRtwjvfylfc9MurIxRAWywCYTgrvpXBcqjV4OfCYGCIQ==}
     engines: {node: '>=16.20.0'}
 
-  polytokenizer@1.0.7:
-    resolution: {integrity: sha512-yiXOvYoiH+ELWW7nfsHNJci/V5Lr3QG5cecrfjUuahbsLq3u8k6hsYiDp2qihQHKX69jdZ7dETIAAvA2ZLmQXg==}
+  polytokenizer@1.0.9:
+    resolution: {integrity: sha512-H6P+VJPezoUS2rIUtuNNrUgv8WOMh4WPpxPfOwvHPi/deIAeqaPSB3qz/az38LSkqX0/PzD4z9byWltwcKdkZw==}
     engines: {node: '>=18.0.0'}
 
   postcss@8.5.4:
@@ -2088,7 +2088,7 @@ snapshots:
 
   pkce-challenge@5.0.0: {}
 
-  polytokenizer@1.0.7(zod@3.25.46):
+  polytokenizer@1.0.9(zod@3.25.46):
     dependencies:
       '@google/generative-ai': 0.19.0
       async: 3.2.6

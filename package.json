@@ -1,6 +1,6 @@
 {
   "name": "simple-milvus-mcp",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "MCP server for Milvus vector database with semantic and full-text search capabilities",
   "type": "module",
   "main": "dist/index.js",
@@ -32,7 +32,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@zilliz/milvus2-sdk-node": "^2.4.8",
-    "polytokenizer": "^1.0.7",
+    "polytokenizer": "^1.0.9",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
