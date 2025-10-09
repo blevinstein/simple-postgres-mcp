@@ -469,7 +469,7 @@ class MilvusMCPServer {
     try {
       const status = await this.client.checkHealth();
       if (!status.isHealthy) {
-        throw new Error(`Milvus server at ${this.host}:${this.port} is not healthy`);
+        throw new Error(`Milvus server at ${this.host}:${this.port} is not healthy: ${JSON.stringify(status)}`);
       }
 
       const transport = new StdioServerTransport();
