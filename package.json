@@ -1,6 +1,6 @@
 {
   "name": "simple-milvus-mcp",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "MCP server for Milvus vector database with semantic and full-text search capabilities",
   "type": "module",
   "main": "dist/index.js",
