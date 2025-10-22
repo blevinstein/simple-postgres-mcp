@@ -152,12 +152,12 @@ class PostgresMCPServer {
 
   async ensureTable(tableName) {
     if (!tableName) {
-      throw new Error('Table name is required either as argument or default');
+      throw new Error('Collection name is required either as argument or default');
     }
 
     // Validate table name to prevent SQL injection
     if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
-      throw new Error('Invalid table name. Must start with letter/underscore and contain only alphanumeric characters and underscores');
+      throw new Error('Invalid collection name. Must start with letter/underscore and contain only alphanumeric characters and underscores');
     }
 
     const expectedDim = EMBEDDING_DIMENSIONS[this.embeddingModel];
