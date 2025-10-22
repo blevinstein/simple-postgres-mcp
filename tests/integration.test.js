@@ -1,58 +1,77 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { MilvusMCPServer } from '../src/mcp-server.js';
-import { MilvusClient } from '@zilliz/milvus2-sdk-node';
+import { PostgresMCPServer } from '../src/mcp-server.js';
+import pg from 'pg';
 
-describe('Milvus MCP Server Integration Tests', () => {
+describe('PostgreSQL MCP Server Integration Tests', () => {
   let server;
-  let client;
+  let pool;
   const testCollection = `test_integration_${Date.now()}`;
   const host = 'localhost';
-  const port = '19530';
+  const port = '5432';
+  const database = 'mcp_memories';
   const embeddingModel = 'google/text-embedding-004';
 
   beforeAll(async () => {
-    // Check if Milvus is running
-    client = new MilvusClient({ address: `${host}:${port}` });
-    
+    // Check if PostgreSQL is running
+    pool = new pg.Pool({
+      host: host,
+      port: parseInt(port),
+      database: database,
+      user: process.env.PGUSER || 'postgres',
+      password: process.env.PGPASSWORD || 'postgres',
+    });
+
     try {
-      const status = await client.checkHealth();
-      if (!status.isHealthy) {
-        throw new Error('Milvus is not healthy');
-      }
+      const client = await pool.connect();
+      await client.query('SELECT 1');
+      // Ensure pgvector extension is installed
+      await client.query('CREATE EXTENSION IF NOT EXISTS vector');
+      client.release();
     } catch (error) {
-      throw new Error(`Could not connect to Milvus at ${host}:${port}. Make sure Milvus is running: ${error.message}`);
+      throw new Error(`Could not connect to PostgreSQL at ${host}:${port}. Make sure PostgreSQL is running: ${error.message}`);
     }
 
-    // Initialize server - fix constructor call
-    server = new MilvusMCPServer(host, port, testCollection, embeddingModel);
+    // Initialize server
+    server = new PostgresMCPServer(host, port, database, testCollection, embeddingModel);
   });
 
   afterAll(async () => {
-    if (client) {
+    if (pool) {
       try {
-        // Clean up all test collections
-        const collections = await client.listCollections();
-        for (const collection of collections.collection_names) {
-          if (collection.startsWith('test_integration_')) {
-            await client.dropCollection({ collection_name: collection });
+        // Clean up all test tables
+        const client = await pool.connect();
+        try {
+          const result = await client.query(`
+            SELECT tablename FROM pg_tables
+            WHERE tablename LIKE 'test_%'
+          `);
+          for (const row of result.rows) {
+            await client.query(`DROP TABLE IF EXISTS ${row.tablename} CASCADE`);
           }
+        } finally {
+          client.release();
         }
       } catch (error) {
         console.warn('Cleanup failed:', error.message);
       }
-      await client.closeConnection();
+      await pool.end();
+    }
+    if (server) {
+      await server.close();
     }
   });
 
   beforeEach(async () => {
-    // Ensure collection exists and is clean for each test
+    // Ensure table is clean for each test
     try {
-      const hasCollection = await client.hasCollection({ collection_name: testCollection });
-      if (hasCollection.value) {
-        await client.dropCollection({ collection_name: testCollection });
+      const client = await pool.connect();
+      try {
+        await client.query(`DROP TABLE IF EXISTS ${testCollection} CASCADE`);
+      } finally {
+        client.release();
       }
     } catch (error) {
-      // Collection might not exist, which is fine
+      // Table might not exist, which is fine
     }
   });
 
@@ -89,15 +108,17 @@ describe('Milvus MCP Server Integration Tests', () => {
     });
 
     it('should handle invalid embedding model gracefully', async () => {
-      const invalidServer = new MilvusMCPServer(host, port, testCollection, 'invalid/model');
+      const invalidServer = new PostgresMCPServer(host, port, database, testCollection, 'invalid/model');
       const content = 'Test content';
 
       const result = await invalidServer.storeMemory({ content });
-      
+
       const response = JSON.parse(result.content[0].text);
       expect(response.success).toBe(false);
       expect(response.operation).toBe('store');
       expect(response.error).toContain('not found in EMBEDDING_DIMENSIONS');
+
+      await invalidServer.close();
     });
   });
 
@@ -283,23 +304,46 @@ describe('Milvus MCP Server Integration Tests', () => {
     });
   });
 
-  describe('Collection Management', () => {
-    it('should create collection with proper BM25 schema', async () => {
-      const testCollectionName = `test_collection_${Date.now()}`;
-      
-      // Store something to trigger collection creation
+  describe('Table Management', () => {
+    it('should create table with proper schema', async () => {
+      const testTableName = `test_table_${Date.now()}`;
+
+      // Store something to trigger table creation
       await server.storeMemory({
-        content: 'Test content for collection creation',
+        content: 'Test content for table creation',
         metadata: { purpose: 'schema_test' },
-        collection: testCollectionName
+        collection: testTableName
       });
 
-      // Verify collection exists
-      const hasCollection = await client.hasCollection({ collection_name: testCollectionName });
-      expect(hasCollection.value).toBe(true);
+      // Verify table exists and has correct schema
+      const client = await pool.connect();
+      try {
+        const result = await client.query(`
+          SELECT column_name, data_type
+          FROM information_schema.columns
+          WHERE table_name = $1
+          ORDER BY ordinal_position
+        `, [testTableName]);
+
+        expect(result.rows.length).toBeGreaterThan(0);
+        const columns = result.rows.map(r => r.column_name);
+        expect(columns).toContain('id');
+        expect(columns).toContain('content');
+        expect(columns).toContain('embedding');
+        expect(columns).toContain('content_fts');
+        expect(columns).toContain('metadata_json');
+        expect(columns).toContain('created_at');
+      } finally {
+        client.release();
+      }
 
       // Clean up
-      await client.dropCollection({ collection_name: testCollectionName });
+      const cleanupClient = await pool.connect();
+      try {
+        await cleanupClient.query(`DROP TABLE IF EXISTS ${testTableName} CASCADE`);
+      } finally {
+        cleanupClient.release();
+      }
     });
   });
 

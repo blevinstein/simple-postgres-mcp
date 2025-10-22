@@ -1,28 +1,36 @@
 {
-  "name": "simple-milvus-mcp",
-  "version": "1.0.11",
-  "description": "MCP server for Milvus vector database with semantic and full-text search capabilities",
+  "name": "simple-postgres-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for PostgreSQL vector database with semantic and full-text search capabilities using pgvector",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "simple-milvus-mcp": "./dist/index.js"
+    "simple-postgres-mcp": "./dist/index.js"
   },
   "files": [
     "dist/"
   ],
   "scripts": {
-    "build": "ncc build src/index.js -o dist --minify --external @zilliz/milvus2-sdk-node",
+    "build": "ncc build src/index.js -o dist --minify --external pg",
     "dev": "node src/index.js",
     "prepublishOnly": "pnpm run build",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "mcp:install": "dotenv run ./install-mcp.sh",
+    "mcp:uninstall": "dotenv run ./uninstall-mcp.sh"
   },
   "keywords": [
-    "milvus",
+    "postgres",
+    "postgresql",
+    "pgvector",
     "mcp",
     "vector",
     "database",
     "semantic-search",
+    "full-text-search",
     "ai",
     "embeddings"
   ],
@@ -30,7 +38,8 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.19.1",
-    "@zilliz/milvus2-sdk-node": "^2.6.0",
+    "dotenv": "^17.2.3",
+    "pg": "^8.13.1",
     "polytokenizer": "^1.0.9",
     "yargs": "^17.7.2"
   },
@@ -43,7 +52,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/blevinstein/simple-milvus-mcp.git"
+    "url": "git+https://github.com/blevinstein/simple-postgres-mcp.git"
   },
   "packageManager": "pnpm@10.11.0+sha512.6540583f41cc5f628eb3d9773ecee802f4f9ef9923cc45b69890fb47991d4b092964694ec3a4f738a420c918a333062c8b925d312f42e4f0c263eb603551f977"
 }

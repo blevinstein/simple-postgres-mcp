@@ -1,29 +1,34 @@
 {
   "mcpServers": {
-    "simple-milvus-mcp": {
+    "simple-postgres-mcp": {
       "command": "node",
       "args": [
         "./src/index.js",
         "--host", "localhost",
-        "--port", "19530",
+        "--port", "5432",
+        "--database", "mcp_memories",
         "--collection", "test_collection",
         "--embedding-model", "google/text-embedding-004"
       ],
       "env": {
-        "GEMINI_API_KEY": "your-gemini-api-key"
+        "GEMINI_API_KEY": "your-gemini-api-key",
+        "PGUSER": "postgres",
+        "PGPASSWORD": "postgres"
       }
     },
-    "simple-milvus-mcp-all": {
+    "simple-postgres-mcp-multi": {
       "command": "node",
       "args": [
         "./src/index.js",
         "--host", "localhost",
-        "--port", "19530",
-        "--collection", "test_collection",
+        "--port", "5432",
+        "--database", "mcp_memories",
         "--embedding-model", "google/text-embedding-004"
       ],
       "env": {
-        "GEMINI_API_KEY": "your-gemini-api-key"
+        "GEMINI_API_KEY": "your-gemini-api-key",
+        "PGUSER": "postgres",
+        "PGPASSWORD": "postgres"
       }
     }
   }

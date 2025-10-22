@@ -2,22 +2,27 @@
 
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { MilvusMCPServer } from './mcp-server.js';
+import { PostgresMCPServer } from './mcp-server.js';
 
 const argv = yargs(hideBin(process.argv))
   .option('host', {
     type: 'string',
     default: 'localhost',
-    description: 'Milvus server host'
+    description: 'PostgreSQL server host'
   })
   .option('port', {
     type: 'string',
-    default: '19530',
-    description: 'Milvus server port'
+    default: '5432',
+    description: 'PostgreSQL server port'
+  })
+  .option('database', {
+    type: 'string',
+    default: 'mcp_memories',
+    description: 'PostgreSQL database name'
   })
   .option('collection', {
     type: 'string',
-    description: 'Milvus collection name (if not provided, must be specified per tool call)'
+    description: 'Default table/collection name (if not provided, must be specified per tool call)'
   })
   .option('embedding-model', {
     type: 'string',
@@ -29,7 +34,13 @@ const argv = yargs(hideBin(process.argv))
 
 async function main() {
   try {
-    const server = new MilvusMCPServer(argv.host, argv.port, argv.collection, argv['embedding-model']);
+    const server = new PostgresMCPServer(
+      argv.host,
+      argv.port,
+      argv.database,
+      argv.collection,
+      argv['embedding-model']
+    );
     await server.run();
   } catch (error) {
     console.error('Failed to start MCP server:', error);
