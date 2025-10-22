@@ -1,6 +1,6 @@
 {
   "name": "simple-postgres-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MCP server for PostgreSQL vector database with semantic and full-text search capabilities using pgvector",
   "type": "module",
   "main": "dist/index.js",
