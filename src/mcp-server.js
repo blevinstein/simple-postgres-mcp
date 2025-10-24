@@ -7,7 +7,7 @@ import { embedText, EMBEDDING_DIMENSIONS } from 'polytokenizer';
 const DEFAULT_EMBEDDING_MODEL = 'google/text-embedding-004';
 
 class PostgresMCPServer {
-  constructor(host, port, database, fixedCollection, embeddingModel) {
+  constructor(host, port, database, user, password, fixedCollection, embeddingModel) {
     this.host = host;
     this.port = port;
     this.database = database;
@@ -19,11 +19,11 @@ class PostgresMCPServer {
     }
 
     this.pool = new pg.Pool({
-      host: host,
-      port: parseInt(port),
-      database: database,
-      user: process.env.PGUSER || 'postgres',
-      password: process.env.PGPASSWORD || 'postgres',
+      host,
+      port,
+      database,
+      user,
+      password,
       max: 20,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,

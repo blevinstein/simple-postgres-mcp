@@ -11,14 +11,19 @@ const argv = yargs(hideBin(process.argv))
     description: 'PostgreSQL server host'
   })
   .option('port', {
-    type: 'string',
-    default: '5432',
+    type: 'number',
+    default: 5432,
     description: 'PostgreSQL server port'
   })
   .option('database', {
     type: 'string',
     default: 'mcp_memories',
     description: 'PostgreSQL database name'
+  })
+  .option('user', {
+    type: 'string',
+    default: 'postgres',
+    description: 'PostgreSQL user',
   })
   .option('collection', {
     type: 'string',
@@ -38,6 +43,8 @@ async function main() {
       argv.host,
       argv.port,
       argv.database,
+      argv.user,
+      process.env.PGPASSWORD || 'postgres',
       argv.collection,
       argv['embedding-model']
     );
