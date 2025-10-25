@@ -492,7 +492,12 @@ class PostgresMCPServer {
       try {
         await client.query('SELECT 1');
         // Ensure pgvector extension is installed
-        await client.query('CREATE EXTENSION IF NOT EXISTS vector');
+        const result = await client.query(
+          "SELECT 1 FROM pg_extension WHERE extname = 'vector'"
+        );
+        if (result.rows.length === 0) {
+          await client.query('CREATE EXTENSION IF NOT EXISTS vector');
+        }
       } finally {
         client.release();
       }
