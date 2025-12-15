@@ -81,10 +81,10 @@ describe('PostgreSQL MCP Server Integration Tests', () => {
       const metadata = { topic: 'ML', type: 'educational' };
 
       const result = await server.storeMemory({ content, metadata });
-      
+
       expect(result.content).toHaveLength(1);
       expect(result.content[0].type).toBe('text');
-      
+
       const response = JSON.parse(result.content[0].text);
       expect(response.success).toBe(true);
       expect(response.operation).toBe('store');
@@ -101,7 +101,7 @@ describe('PostgreSQL MCP Server Integration Tests', () => {
       const content = 'Neural networks are inspired by biological neural systems.';
 
       const result = await server.storeMemory({ content });
-      
+
       const response = JSON.parse(result.content[0].text);
       expect(response.success).toBe(true);
       expect(response.result.metadata).toEqual({});
@@ -143,17 +143,17 @@ describe('PostgreSQL MCP Server Integration Tests', () => {
       for (const data of testData) {
         await server.storeMemory(data);
       }
-      
+
       // Wait a moment for data to be available
       await new Promise(resolve => setTimeout(resolve, 100));
     });
 
     describe('Semantic Search', () => {
       it('should find relevant memories using semantic search', async () => {
-        const result = await server.searchMemory({ 
-          query: 'neural networks machine learning', 
-          mode: 'semantic', 
-          limit: 3 
+        const result = await server.searchMemory({
+          query: 'neural networks machine learning',
+          mode: 'semantic',
+          limit: 3
         });
 
         const response = JSON.parse(result.content[0].text);
@@ -163,10 +163,10 @@ describe('PostgreSQL MCP Server Integration Tests', () => {
         expect(response.result.mode).toBe('semantic');
         expect(response.result.count).toBeGreaterThan(0);
         expect(response.result.memories).toBeInstanceOf(Array);
-        
+
         const memories = response.result.memories;
         expect(memories.length).toBeGreaterThan(0);
-        
+
         // Check memory structure
         const memory = memories[0];
         expect(memory.id).toMatch(/^mem_\d+_[a-z0-9]+$/);
@@ -179,10 +179,10 @@ describe('PostgreSQL MCP Server Integration Tests', () => {
 
     describe('Fulltext Search', () => {
       it('should find relevant memories using BM25 fulltext search', async () => {
-        const result = await server.searchMemory({ 
-          query: 'neural networks', 
-          mode: 'fulltext', 
-          limit: 3 
+        const result = await server.searchMemory({
+          query: 'neural networks',
+          mode: 'fulltext',
+          limit: 3
         });
 
         const response = JSON.parse(result.content[0].text);
@@ -191,10 +191,10 @@ describe('PostgreSQL MCP Server Integration Tests', () => {
         expect(response.result.query).toBe('neural networks');
         expect(response.result.mode).toBe('fulltext');
         expect(response.result.count).toBeGreaterThan(0);
-        
+
         const memories = response.result.memories;
         expect(memories.length).toBeGreaterThan(0);
-        
+
         // All returned memories should contain the search terms
         memories.forEach(memory => {
           expect(memory.content.toLowerCase()).toMatch(/neural|networks/);
@@ -202,25 +202,25 @@ describe('PostgreSQL MCP Server Integration Tests', () => {
       });
 
       it('should handle specific term searches', async () => {
-        const result = await server.searchMemory({ 
-          query: 'convolutional', 
-          mode: 'fulltext', 
-          limit: 3 
+        const result = await server.searchMemory({
+          query: 'convolutional',
+          mode: 'fulltext',
+          limit: 3
         });
 
         const response = JSON.parse(result.content[0].text);
         expect(response.success).toBe(true);
-        
+
         const memories = response.result.memories;
         expect(memories.length).toBe(1); // Only one document contains "convolutional"
         expect(memories[0].content).toContain('convolutional');
       });
 
       it('should return empty results for non-matching terms', async () => {
-        const result = await server.searchMemory({ 
-          query: 'quantum computing blockchain', 
-          mode: 'fulltext', 
-          limit: 3 
+        const result = await server.searchMemory({
+          query: 'quantum computing blockchain',
+          mode: 'fulltext',
+          limit: 3
         });
 
         const response = JSON.parse(result.content[0].text);
@@ -231,10 +231,10 @@ describe('PostgreSQL MCP Server Integration Tests', () => {
     });
 
     it('should handle invalid search mode', async () => {
-      const result = await server.searchMemory({ 
-        query: 'test query', 
-        mode: 'invalid_mode', 
-        limit: 5 
+      const result = await server.searchMemory({
+        query: 'test query',
+        mode: 'invalid_mode',
+        limit: 5
       });
 
       const response = JSON.parse(result.content[0].text);
@@ -251,13 +251,13 @@ describe('PostgreSQL MCP Server Integration Tests', () => {
         content: 'Memory to be deleted for testing purposes.',
         metadata: { test: 'delete_test' }
       });
-      
+
       const storeResponse = JSON.parse(storeResult.content[0].text);
       const memoryId = storeResponse.result.id;
 
       // Delete the memory
       const deleteResult = await server.forgetMemory({ id: memoryId });
-      
+
       const deleteResponse = JSON.parse(deleteResult.content[0].text);
       expect(deleteResponse.success).toBe(true);
       expect(deleteResponse.operation).toBe('delete');
@@ -269,14 +269,14 @@ describe('PostgreSQL MCP Server Integration Tests', () => {
         mode: 'semantic',
         limit: 10
       });
-      
+
       const searchResponse = JSON.parse(searchResult.content[0].text);
       expect(searchResponse.result.count).toBe(0);
     });
 
     it('should handle deletion of non-existent memory gracefully', async () => {
       const result = await server.forgetMemory({ id: 'nonexistent_id_12345' });
-      
+
       const response = JSON.parse(result.content[0].text);
       expect(response.success).toBe(false);
       expect(response.operation).toBe('delete');
@@ -288,15 +288,15 @@ describe('PostgreSQL MCP Server Integration Tests', () => {
       await server.storeMemory({
         content: 'Test content to ensure collection exists',
         metadata: { test: 'setup' },
-        collection: testCollection 
+        collection: testCollection
       });
 
       // Now try to delete a non-existent memory from the existing collection
-      const result = await server.forgetMemory({ 
+      const result = await server.forgetMemory({
         id: 'mem_1234567890_nonexistent',
-        collection: testCollection 
+        collection: testCollection
       });
-      
+
       const response = JSON.parse(result.content[0].text);
       expect(response.success).toBe(false);
       expect(response.operation).toBe('delete');
@@ -361,7 +361,7 @@ describe('PostgreSQL MCP Server Integration Tests', () => {
     it('should handle special characters and unicode', async () => {
       const specialContent = '🚀 Testing émojis, àccénts, and 中文字符! @#$%^&*()';
       const result = await server.storeMemory({ content: specialContent, metadata: { unicode: true, emoji_count: 1 } });
-      
+
       const response = JSON.parse(result.content[0].text);
       expect(response.success).toBe(true);
       expect(response.result.id).toMatch(/^mem_\d+_[a-z0-9]+$/);
@@ -389,20 +389,20 @@ describe('PostgreSQL MCP Server Integration Tests', () => {
         tags: ['tag1', 'tag2', 'tag3']
       };
 
-      const result = await server.storeMemory({ 
-        content: 'Content with complex metadata structure', 
-        metadata: complexMetadata 
+      const result = await server.storeMemory({
+        content: 'Content with complex metadata structure',
+        metadata: complexMetadata
       });
-      
+
       const response = JSON.parse(result.content[0].text);
       expect(response.success).toBe(true);
       expect(response.result.metadata).toEqual(complexMetadata);
     });
 
     it('should handle very long content (>10000 chars)', async () => {
-      const longContent = 'A'.repeat(15000) + ' This is a test of very long content handling in the Milvus MCP server.';
+      const longContent = 'A'.repeat(15000) + ' This is a test of very long content handling in the Postgres MCP server.';
       const result = await server.storeMemory({ content: longContent, metadata: { type: 'long_content_test' } });
-      
+
       const response = JSON.parse(result.content[0].text);
       expect(response.success).toBe(true);
       expect(response.result.content_length).toBe(longContent.length);
@@ -416,41 +416,41 @@ describe('PostgreSQL MCP Server Integration Tests', () => {
 
     it('should isolate data between different collections', async () => {
       // Store content in collection1
-      const result1 = await server.storeMemory({ 
-        content: 'Content in collection 1', 
-        metadata: { source: 'col1' }, 
-        collection: collection1 
+      const result1 = await server.storeMemory({
+        content: 'Content in collection 1',
+        metadata: { source: 'col1' },
+        collection: collection1
       });
       const response1 = JSON.parse(result1.content[0].text);
       expect(response1.success).toBe(true);
 
       // Store content in collection2
-      const result2 = await server.storeMemory({ 
-        content: 'Content in collection 2', 
-        metadata: { source: 'col2' }, 
-        collection: collection2 
+      const result2 = await server.storeMemory({
+        content: 'Content in collection 2',
+        metadata: { source: 'col2' },
+        collection: collection2
       });
       const response2 = JSON.parse(result2.content[0].text);
       expect(response2.success).toBe(true);
 
       // Search in collection1 should only find collection1 content
-      const search1 = await server.searchMemory({ 
-        query: 'Content', 
-        mode: 'semantic', 
-        limit: 10, 
-        collection: collection1 
+      const search1 = await server.searchMemory({
+        query: 'Content',
+        mode: 'semantic',
+        limit: 10,
+        collection: collection1
       });
       const searchResponse1 = JSON.parse(search1.content[0].text);
       expect(searchResponse1.success).toBe(true);
       expect(searchResponse1.result.memories.length).toBe(1);
       expect(searchResponse1.result.memories[0].metadata.source).toBe('col1');
 
-      // Search in collection2 should only find collection2 content  
-      const search2 = await server.searchMemory({ 
-        query: 'Content', 
-        mode: 'semantic', 
-        limit: 10, 
-        collection: collection2 
+      // Search in collection2 should only find collection2 content
+      const search2 = await server.searchMemory({
+        query: 'Content',
+        mode: 'semantic',
+        limit: 10,
+        collection: collection2
       });
       const searchResponse2 = JSON.parse(search2.content[0].text);
       expect(searchResponse2.success).toBe(true);
@@ -470,10 +470,10 @@ describe('PostgreSQL MCP Server Integration Tests', () => {
       // Store multiple memories concurrently
       for (let i = 0; i < batchSize; i++) {
         promises.push(
-          server.storeMemory({ 
-            content: `Batch test content ${i} with unique identifier for testing concurrent operations`, 
-            metadata: { batch: true, index: i }, 
-            collection: perfCollection 
+          server.storeMemory({
+            content: `Batch test content ${i} with unique identifier for testing concurrent operations`,
+            metadata: { batch: true, index: i },
+            collection: perfCollection
           })
         );
       }
@@ -492,15 +492,15 @@ describe('PostgreSQL MCP Server Integration Tests', () => {
       expect(endTime - startTime).toBeLessThan(30000);
 
       // Test batch search
-      const searchResult = await server.searchMemory({ 
-        query: 'batch test', 
-        mode: 'semantic', 
-        limit: batchSize, 
-        collection: perfCollection 
+      const searchResult = await server.searchMemory({
+        query: 'batch test',
+        mode: 'semantic',
+        limit: batchSize,
+        collection: perfCollection
       });
       const searchResponse = JSON.parse(searchResult.content[0].text);
       expect(searchResponse.success).toBe(true);
       expect(searchResponse.result.memories.length).toBe(batchSize);
     });
   });
-}); 
+});

@@ -111,7 +111,7 @@ pnpm run dev --help
 ### Available Tools
 
 #### 1. `store_memory`
-Store a document/memory in Milvus with automatic embedding generation and ID creation.
+Store a document/memory in Postgres with automatic embedding generation and ID creation.
 
 **Parameters:**
 - `content` (string, required): The text content to store
